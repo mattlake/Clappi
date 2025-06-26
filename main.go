@@ -1,9 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gdamore/tcell/v2"
+	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/rivo/tview"
+	"os"
 )
+
+var openApiSpec *libopenapi.DocumentModel[v3.Document]
 
 func main() {
 	// Bootstrap the app
@@ -17,6 +23,9 @@ func main() {
 		}
 		return event
 	})
+
+	// Load the openApiSpec
+	openApiSpec = loadOpenApiSpec()
 
 	// Create the main window
 	mainWindow := tview.NewFrame(createMainWindow()).
@@ -41,7 +50,15 @@ func createLeftSideBar() tview.Primitive {
 	return tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewBox().SetBorder(true).SetTitle("Environment"), 0, 1, false).
 		AddItem(tview.NewBox().SetBorder(true).SetTitle("APIs"), 0, 1, false).
-		AddItem(tview.NewBox().SetBorder(true).SetTitle("Endpoints"), 0, 3, false)
+		AddItem(createEndpointsBox(openApiSpec.Model.Paths), 0, 3, false)
+}
+func createEndpointsBox(paths *v3.Paths) tview.Primitive {
+	endpointList := tview.NewList()
+	for pathName, _ := range paths.PathItems.FromOldest() {
+		endpointList.AddItem(pathName, "", 0, nil)
+	}
+	endpointList.SetBorder(true).SetTitle("Endpoints")
+	return endpointList
 }
 
 func createRequestArea() tview.Primitive {
@@ -50,4 +67,25 @@ func createRequestArea() tview.Primitive {
 
 func createResponseArea() tview.Primitive {
 	return tview.NewBox().SetBorder(true).SetTitle("Response")
+}
+
+func loadOpenApiSpec() *libopenapi.DocumentModel[v3.Document] {
+	// Read the api spec from file
+	apiSpec, _ := os.ReadFile("assets/petstorev3.json")
+
+	// Load the spec into a document
+	doc, err := libopenapi.NewDocument(apiSpec)
+	if err != nil {
+		panic(fmt.Sprintf("Could not create document: %e", err))
+	}
+
+	docModel, errors := doc.BuildV3Model()
+	if len(errors) > 0 {
+		for i := range errors {
+			fmt.Printf("Error: %s\n", errors[i])
+		}
+		panic(fmt.Sprintf("Could not create v3 model, %d errors reported", len(errors)))
+	}
+
+	return docModel
 }
