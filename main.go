@@ -1,6 +1,8 @@
 package main
 
 import (
+	"Clappi/translations"
+	"Clappi/translations/ErrorMessages"
 	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/pb33f/libopenapi"
@@ -30,7 +32,7 @@ func main() {
 	// Create the main window
 	mainWindow := tview.NewFrame(createMainWindow()).
 		SetBorders(0, 0, 0, 1, 0, 0).
-		AddText("Press q to quit.", false, tview.AlignLeft, tcell.ColorWhite)
+		AddText(translations.QuitHelper, false, tview.AlignLeft, tcell.ColorWhite)
 
 	// Run that badboy
 	if err := app.SetRoot(mainWindow, true).Run(); err != nil {
@@ -43,48 +45,39 @@ func createMainWindow() tview.Primitive {
 		AddItem(createLeftSideBar(), 0, 1, false).
 		AddItem(createRequestArea(), 0, 2, false).
 		AddItem(createResponseArea(), 0, 2, false)
-
 }
 
 func createLeftSideBar() tview.Primitive {
 	return tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(tview.NewBox().SetBorder(true).SetTitle("Environment"), 0, 1, false).
-		AddItem(tview.NewBox().SetBorder(true).SetTitle("APIs"), 0, 1, false).
+		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Environment), 0, 1, false).
+		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.APis), 0, 1, false).
 		AddItem(createEndpointsBox(openApiSpec.Model.Paths), 0, 3, false)
-}
-func createEndpointsBox(paths *v3.Paths) tview.Primitive {
-	endpointList := tview.NewList()
-	for pathName, _ := range paths.PathItems.FromOldest() {
-		endpointList.AddItem(pathName, "", 0, nil)
-	}
-	endpointList.SetBorder(true).SetTitle("Endpoints")
-	return endpointList
 }
 
 func createRequestArea() tview.Primitive {
-	return tview.NewBox().SetBorder(true).SetTitle("Request")
+	return tview.NewBox().SetBorder(true).SetTitle(translations.Request)
 }
 
 func createResponseArea() tview.Primitive {
-	return tview.NewBox().SetBorder(true).SetTitle("Response")
+	return tview.NewBox().SetBorder(true).SetTitle(translations.Response)
 }
 
 func loadOpenApiSpec() *libopenapi.DocumentModel[v3.Document] {
 	// Read the api spec from file
-	apiSpec, _ := os.ReadFile("assets/petstorev3.json")
+	apiSpec, _ := os.ReadFile("assets/petstorev3.json") // todo this will import and store somewhere, maybe sqlite?
 
 	// Load the spec into a document
 	doc, err := libopenapi.NewDocument(apiSpec)
 	if err != nil {
-		panic(fmt.Sprintf("Could not create document: %e", err))
+		panic(fmt.Sprintf(ErrorMessages.CouldNotCreateDocument, err))
 	}
 
 	docModel, errors := doc.BuildV3Model()
 	if len(errors) > 0 {
 		for i := range errors {
-			fmt.Printf("Error: %s\n", errors[i])
+			fmt.Printf(ErrorMessages.Error, errors[i])
 		}
-		panic(fmt.Sprintf("Could not create v3 model, %d errors reported", len(errors)))
+		panic(fmt.Sprintf(ErrorMessages.CouldNotCreateModel, len(errors)))
 	}
 
 	return docModel
