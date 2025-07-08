@@ -10,8 +10,21 @@ import (
 	"sort"
 )
 
-func createEndpointsBox(paths *v3.Paths) tview.Primitive {
-	tree := tview.NewTreeView()
+type vimTreeView struct {
+	*tview.TreeView
+	lastKey rune
+}
+
+type EndpointsBox struct {
+	View     tview.Primitive
+	TreeView *vimTreeView
+}
+
+func createEndpointsBox(paths *v3.Paths) *EndpointsBox {
+	tree := &vimTreeView{
+		TreeView: tview.NewTreeView(),
+		lastKey:  0,
+	}
 	root := tview.NewTreeNode(translations.Endpoints).
 		SetColor(tcell.ColorYellow)
 	tree.SetRoot(root)
@@ -28,7 +41,7 @@ func createEndpointsBox(paths *v3.Paths) tview.Primitive {
 	// Add the paths to the tree
 	for _, pathName := range pathNames {
 		pathItem, _ := paths.PathItems.Get(pathName)
-		pathNode := tview.NewTreeNode(pathName).SetColor(tcell.ColorWhite)
+		pathNode := tview.NewTreeNode(pathName).SetColor(tcell.ColorWhite).SetExpanded(false)
 		root.AddChild(pathNode)
 
 		// Add HTTP methods as children
@@ -61,7 +74,45 @@ func createEndpointsBox(paths *v3.Paths) tview.Primitive {
 	// We expand the root node by default
 	root.SetExpanded(true)
 
-	return tree
+	// Add vim style key bindings
+	tree.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		node := tree.GetCurrentNode()
+		switch event.Rune() {
+		case 'j':
+			return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+		case 'k':
+			return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+		case 'h':
+			if node != nil {
+				node.SetExpanded(false)
+			}
+			return nil
+		case 'l':
+			if node != nil {
+				node.SetExpanded(true)
+			}
+			return nil
+		case 'g':
+			if tree.lastKey == 'g' {
+				tree.lastKey = 0
+				tree.SetCurrentNode(root)
+				return nil
+			}
+		case 'G':
+			if node != nil {
+				lastNode := getLastVisibleNode(root)
+				tree.SetCurrentNode(lastNode)
+			}
+			return nil
+		}
+		// todo add search
+		return event
+	})
+
+	return &EndpointsBox{
+		View:     tree,
+		TreeView: tree,
+	}
 }
 
 func addMethodNode(parent *tview.TreeNode, method string, operation *v3.Operation) {
@@ -81,7 +132,6 @@ func addMethodNode(parent *tview.TreeNode, method string, operation *v3.Operatio
 
 	switch method {
 	case HttpMethods.Get:
-
 		methodNode.SetColor(tcell.ColorGreen)
 	case HttpMethods.Post:
 		methodNode.SetColor(tcell.ColorYellow)
@@ -95,6 +145,7 @@ func addMethodNode(parent *tview.TreeNode, method string, operation *v3.Operatio
 		methodNode.SetColor(tcell.ColorWhite)
 	}
 
+	methodNode.SetExpanded(false)
 	parent.AddChild(methodNode)
 
 	// Add parameters to the children if they exist
@@ -112,4 +163,17 @@ func addMethodNode(parent *tview.TreeNode, method string, operation *v3.Operatio
 			paramsNode.AddChild(paramNode)
 		}
 	}
+}
+
+func getLastVisibleNode(node *tview.TreeNode) *tview.TreeNode {
+	if node == nil {
+		return nil
+	}
+
+	if !node.IsExpanded() || len(node.GetChildren()) == 0 {
+		return node
+	}
+
+	children := node.GetChildren()
+	return getLastVisibleNode(children[len(children)-1])
 }

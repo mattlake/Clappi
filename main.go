@@ -35,7 +35,7 @@ func main() {
 		AddText(translations.QuitHelper, false, tview.AlignLeft, tcell.ColorWhite)
 
 	// Run that badboy
-	if err := app.SetRoot(mainWindow, true).Run(); err != nil {
+	if err := app.SetRoot(mainWindow, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
 }
@@ -51,7 +51,7 @@ func createLeftSideBar() tview.Primitive {
 	return tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Environment), 0, 1, false).
 		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.APis), 0, 1, false).
-		AddItem(createEndpointsBox(openApiSpec.Model.Paths), 0, 3, false)
+		AddItem(createEndpointsBox(openApiSpec.Model.Paths).View, 0, 3, true)
 }
 
 func createRequestArea() tview.Primitive {
