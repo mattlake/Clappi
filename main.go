@@ -42,24 +42,21 @@ func main() {
 
 func createMainWindow() tview.Primitive {
 	return tview.NewFlex().
-		AddItem(createLeftSideBar(), 0, 1, false).
-		AddItem(createRequestArea(), 0, 2, false).
-		AddItem(createResponseArea(), 0, 2, false)
+		AddItem(createSideBar(), 0, 1, false).
+		AddItem(createContentArea(), 0, 2, false)
 }
 
-func createLeftSideBar() tview.Primitive {
+func createSideBar() tview.Primitive {
 	return tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Environment), 0, 1, false).
 		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.APis), 0, 1, false).
 		AddItem(createEndpointsBox(openApiSpec.Model.Paths).View, 0, 3, true)
 }
 
-func createRequestArea() tview.Primitive {
-	return tview.NewBox().SetBorder(true).SetTitle(translations.Request)
-}
-
-func createResponseArea() tview.Primitive {
-	return tview.NewBox().SetBorder(true).SetTitle(translations.Response)
+func createContentArea() tview.Primitive {
+	return tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Request), 0, 1, false).
+		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Response), 0, 1, false)
 }
 
 func loadOpenApiSpec() *libopenapi.DocumentModel[v3.Document] {
