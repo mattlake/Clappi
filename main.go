@@ -1,82 +1,121 @@
 package main
 
 import (
-	"Clappi/translations"
-	"Clappi/translations/ErrorMessages"
-	"fmt"
 	"github.com/gdamore/tcell/v2"
-	"github.com/pb33f/libopenapi"
-	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/rivo/tview"
-	"os"
 )
 
-var openApiSpec *libopenapi.DocumentModel[v3.Document]
-var app *tview.Application
+var defaultBorderColor = tcell.ColorWhite
+var focusedBorderColor = tcell.ColorYellow
 
 func main() {
-	// Bootstrap the app
-	app = tview.NewApplication()
+	app := tview.NewApplication()
 
-	// Set global keybindings
+	sidebarTop := tview.NewTextView().SetText("Sidebar top").
+		SetTextAlign(tview.AlignCenter).
+		SetBorder(true).
+		SetTitle("Panel 1")
+	sidebarMiddle := tview.NewTextView().SetText("Sidebar middle").
+		SetTextAlign(tview.AlignCenter).
+		SetBorder(true).
+		SetTitle("Panel 2")
+	sidebarBottom := tview.NewTextView().SetText("Sidebar bottom").
+		SetTextAlign(tview.AlignCenter).
+		SetBorder(true).
+		SetTitle("Panel 3")
+
+	mainTop := tview.NewTextView().SetText("Main top").
+		SetTextAlign(tview.AlignCenter).
+		SetBorder(true).
+		SetTitle("Main 1")
+	mainBottom := tview.NewTextView().SetText("Main bottom").
+		SetTextAlign(tview.AlignCenter).
+		SetBorder(true).
+		SetTitle("Main bottom")
+
+	sidebar := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(sidebarTop, 0, 1, false).
+		AddItem(sidebarMiddle, 0, 1, false).
+		AddItem(sidebarBottom, 0, 1, false)
+	mainContent := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(mainTop, 0, 1, false).
+		AddItem(mainBottom, 0, 1, false)
+
+	root := tview.NewFlex().
+		AddItem(sidebar, 30, 1, false).
+		AddItem(mainContent, 0, 2, false)
+
+	panels := []tview.Primitive{
+		sidebarTop, sidebarMiddle, sidebarBottom,
+		mainTop, mainBottom,
+	}
+
+	currentPanel := 0
+
+	setFocus := func(index int) {
+		// Reset the border colors
+		for _, p := range panels {
+			p.(*tview.Box).SetBorderColor(defaultBorderColor)
+		}
+
+		// highlight the focused panel
+		currentPanel = index
+		if currentPanel >= len(panels) {
+			currentPanel = 0
+		} else if currentPanel < 0 {
+			currentPanel = len(panels) - 1
+		}
+		panels[currentPanel].(*tview.Box).SetBorderColor(focusedBorderColor)
+		app.SetFocus(panels[currentPanel])
+	}
+
+	setFocus(0)
+
+	// Key bindings
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		// Standard keys, I may bin these tbh
+		case tcell.KeyEscape:
+			app.Stop()
+		case tcell.KeyTab:
+			setFocus(currentPanel + 1)
+			return nil
+		case tcell.KeyBacktab:
+			setFocus(currentPanel - 1)
+			return nil
+		}
+
+		// Vim Keybindings
 		switch event.Rune() {
+		case 'j':
+			if currentPanel < len(panels)-1 {
+				setFocus(currentPanel + 1)
+			}
+			return nil
+		case 'k':
+			if currentPanel > 0 {
+				setFocus(currentPanel - 1)
+			}
+			return nil
+		case 'h':
+			if currentPanel >= 3 {
+				setFocus(currentPanel - 3)
+			}
+			return nil
+		case 'l':
+			if currentPanel < 3 {
+				setFocus(currentPanel + 3)
+			}
+			return nil
 		case 'q':
 			app.Stop()
+			return nil
 		}
+
 		return event
 	})
 
-	// Load the openApiSpec
-	openApiSpec = loadOpenApiSpec()
-
-	// Create the main window
-	mainWindow := tview.NewFrame(createMainWindow()).
-		SetBorders(0, 0, 0, 1, 0, 0).
-		AddText(translations.QuitHelper, false, tview.AlignLeft, tcell.ColorWhite)
-
-	// Run that badboy
-	if err := app.SetRoot(mainWindow, true).EnableMouse(true).Run(); err != nil {
+	if err := app.SetRoot(root, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
-}
-
-func createMainWindow() tview.Primitive {
-	return tview.NewFlex().
-		AddItem(createSideBar(), 0, 1, false).
-		AddItem(createContentArea(), 0, 3, true)
-}
-
-func createSideBar() tview.Primitive {
-	return tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Environment), 0, 1, false).
-		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.APis), 0, 1, false).
-		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Endpoints), 0, 1, false)
-}
-
-func createContentArea() tview.Primitive {
-	return tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Request), 0, 1, false).
-		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Response), 0, 1, false)
-}
-
-func loadOpenApiSpec() *libopenapi.DocumentModel[v3.Document] {
-	// Read the api spec from file
-	apiSpec, _ := os.ReadFile("assets/petstorev3.json") // todo this will import and store somewhere, maybe sqlite?
-
-	// Load the spec into a document
-	doc, err := libopenapi.NewDocument(apiSpec)
-	if err != nil {
-		panic(fmt.Sprintf(ErrorMessages.CouldNotCreateDocument, err))
-	}
-
-	docModel, errors := doc.BuildV3Model()
-	if len(errors) > 0 {
-		for i := range errors {
-			fmt.Printf(ErrorMessages.Error, errors[i])
-		}
-		panic(fmt.Sprintf(ErrorMessages.CouldNotCreateModel, len(errors)))
-	}
-
-	return docModel
 }
