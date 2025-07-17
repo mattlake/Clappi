@@ -12,10 +12,11 @@ import (
 )
 
 var openApiSpec *libopenapi.DocumentModel[v3.Document]
+var app *tview.Application
 
 func main() {
 	// Bootstrap the app
-	app := tview.NewApplication()
+	app = tview.NewApplication()
 
 	// Set global keybindings
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -43,14 +44,14 @@ func main() {
 func createMainWindow() tview.Primitive {
 	return tview.NewFlex().
 		AddItem(createSideBar(), 0, 1, false).
-		AddItem(createContentArea(), 0, 2, false)
+		AddItem(createContentArea(), 0, 3, true)
 }
 
 func createSideBar() tview.Primitive {
 	return tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Environment), 0, 1, false).
 		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.APis), 0, 1, false).
-		AddItem(createEndpointsBox(openApiSpec.Model.Paths).View, 0, 3, true)
+		AddItem(tview.NewBox().SetBorder(true).SetTitle(translations.Endpoints), 0, 1, false)
 }
 
 func createContentArea() tview.Primitive {
