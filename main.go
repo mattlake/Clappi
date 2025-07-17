@@ -1,121 +1,158 @@
 package main
 
 import (
+	"Clappi/constants"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-var defaultBorderColor = tcell.ColorWhite
-var focusedBorderColor = tcell.ColorYellow
+type ClappiTUI struct {
+	app          *tview.Application
+	panels       []tview.Primitive
+	currentPanel int
+}
 
-func main() {
-	app := tview.NewApplication()
+const (
+	mainPanelsStartIndex = 3
+	defaultBorderColor   = tcell.ColorWhite
+	focusedBorderColor   = tcell.ColorYellow
+)
 
-	sidebarTop := tview.NewTextView().SetText("Sidebar top").
+func createTextPanelBase(title, content string) *tview.Box {
+	return tview.NewTextView().
+		SetText(content).
 		SetTextAlign(tview.AlignCenter).
 		SetBorder(true).
-		SetTitle("Panel 1")
-	sidebarMiddle := tview.NewTextView().SetText("Sidebar middle").
-		SetTextAlign(tview.AlignCenter).
-		SetBorder(true).
-		SetTitle("Panel 2")
-	sidebarBottom := tview.NewTextView().SetText("Sidebar bottom").
-		SetTextAlign(tview.AlignCenter).
-		SetBorder(true).
-		SetTitle("Panel 3")
+		SetTitle(title)
+}
 
-	mainTop := tview.NewTextView().SetText("Main top").
-		SetTextAlign(tview.AlignCenter).
-		SetBorder(true).
-		SetTitle("Main 1")
-	mainBottom := tview.NewTextView().SetText("Main bottom").
-		SetTextAlign(tview.AlignCenter).
-		SetBorder(true).
-		SetTitle("Main bottom")
+func newClappiTUI() *ClappiTUI {
+	tui := &ClappiTUI{
+		app:          tview.NewApplication(),
+		currentPanel: 0,
+	}
+	tui.setupPanels()
+	return tui
+}
 
-	sidebar := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(sidebarTop, 0, 1, false).
-		AddItem(sidebarMiddle, 0, 1, false).
-		AddItem(sidebarBottom, 0, 1, false)
-	mainContent := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(mainTop, 0, 1, false).
-		AddItem(mainBottom, 0, 1, false)
+func (tui *ClappiTUI) setupPanels() {
+	sidebarPanels := []struct {
+		title, content string
+	}{
+		{constants.EnvironmentsPanelTitle, "Sidebar top"},
+		{constants.ApisPanelTitle, "Sidebar middle"},
+		{constants.EndpointsPanelTitle, "Sidebar bottom"},
+	}
+
+	mainPanels := []struct {
+		title, content string
+	}{
+		{constants.RequestPanelTitle, "Main top"},
+		{constants.ResponsePanelTitle, "Main Bottom"},
+	}
+
+	var sideBarViews []tview.Primitive
+	for _, p := range sidebarPanels {
+		panel := createTextPanelBase(p.title, p.content)
+		sideBarViews = append(sideBarViews, panel)
+		tui.panels = append(tui.panels, panel)
+	}
+	var mainViews []tview.Primitive
+	for _, p := range mainPanels {
+		panel := createTextPanelBase(p.title, p.content)
+		mainViews = append(mainViews, panel)
+		tui.panels = append(tui.panels, panel)
+	}
+
+	sidebar := tui.createVerticalFlex(sideBarViews...)
+	mainContent := tui.createVerticalFlex(mainViews...)
 
 	root := tview.NewFlex().
-		AddItem(sidebar, 30, 1, false).
+		AddItem(sidebar, 0, 1, false).
 		AddItem(mainContent, 0, 2, false)
 
-	panels := []tview.Primitive{
-		sidebarTop, sidebarMiddle, sidebarBottom,
-		mainTop, mainBottom,
+	tui.app.SetRoot(root, true).EnableMouse(true)
+}
+
+func (tui *ClappiTUI) createVerticalFlex(items ...tview.Primitive) *tview.Flex {
+	flex := tview.NewFlex().SetDirection(tview.FlexRow)
+
+	for _, item := range items {
+		flex.AddItem(item, 0, 1, false)
 	}
 
-	currentPanel := 0
-
-	setFocus := func(index int) {
-		// Reset the border colors
-		for _, p := range panels {
-			p.(*tview.Box).SetBorderColor(defaultBorderColor)
-		}
-
-		// highlight the focused panel
-		currentPanel = index
-		if currentPanel >= len(panels) {
-			currentPanel = 0
-		} else if currentPanel < 0 {
-			currentPanel = len(panels) - 1
-		}
-		panels[currentPanel].(*tview.Box).SetBorderColor(focusedBorderColor)
-		app.SetFocus(panels[currentPanel])
+	return flex
+}
+func (tui *ClappiTUI) setFocus(index int) {
+	// Reset the border colors
+	for _, p := range tui.panels {
+		p.(*tview.Box).SetBorderColor(defaultBorderColor)
 	}
 
-	setFocus(0)
-
-	// Key bindings
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	// highlight the focused panel
+	tui.currentPanel = index
+	if tui.currentPanel >= len(tui.panels) {
+		tui.currentPanel = 0
+	} else if tui.currentPanel < 0 {
+		tui.currentPanel = len(tui.panels) - 1
+	}
+	tui.panels[tui.currentPanel].(*tview.Box).SetBorderColor(focusedBorderColor)
+	tui.app.SetFocus(tui.panels[tui.currentPanel])
+}
+func (tui *ClappiTUI) setupKeyBindings() {
+	tui.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		// Standard keys, I may bin these tbh
 		case tcell.KeyEscape:
-			app.Stop()
+			tui.app.Stop()
 		case tcell.KeyTab:
-			setFocus(currentPanel + 1)
+			tui.setFocus(tui.currentPanel + 1)
 			return nil
 		case tcell.KeyBacktab:
-			setFocus(currentPanel - 1)
+			tui.setFocus(tui.currentPanel - 1)
 			return nil
 		}
 
 		// Vim Keybindings
 		switch event.Rune() {
 		case 'j':
-			if currentPanel < len(panels)-1 {
-				setFocus(currentPanel + 1)
+			if tui.currentPanel < len(tui.panels)-1 {
+				tui.setFocus(tui.currentPanel + 1)
 			}
 			return nil
 		case 'k':
-			if currentPanel > 0 {
-				setFocus(currentPanel - 1)
+			if tui.currentPanel > 0 {
+				tui.setFocus(tui.currentPanel - 1)
 			}
 			return nil
 		case 'h':
-			if currentPanel >= 3 {
-				setFocus(currentPanel - 3)
+			if tui.currentPanel >= mainPanelsStartIndex {
+				tui.setFocus(tui.currentPanel - mainPanelsStartIndex)
 			}
 			return nil
 		case 'l':
-			if currentPanel < 3 {
-				setFocus(currentPanel + 3)
+			if tui.currentPanel < mainPanelsStartIndex {
+				tui.setFocus(tui.currentPanel + mainPanelsStartIndex)
 			}
 			return nil
 		case 'q':
-			app.Stop()
+			tui.app.Stop()
 			return nil
 		}
 
 		return event
 	})
+}
 
-	if err := app.SetRoot(root, true).EnableMouse(true).Run(); err != nil {
+func (tui *ClappiTUI) run() error {
+	tui.setFocus(0)
+	return tui.app.Run()
+}
+
+func main() {
+	tui := newClappiTUI()
+	tui.setupKeyBindings()
+	if err := tui.run(); err != nil {
 		panic(err)
 	}
 }
