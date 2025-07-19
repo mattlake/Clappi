@@ -12,9 +12,8 @@ type Panel interface {
 }
 
 type PanelConfig struct {
-	title     string
-	content   string
-	isPrimary bool
+	title   string
+	content string
 }
 
 type ClappiTUI struct {
@@ -33,14 +32,14 @@ const (
 // Define panel configurations
 var (
 	sidebarPanelConfigs = []PanelConfig{
-		{title: constants.EnvironmentsPanelTitle, content: "", isPrimary: false},
-		{title: constants.ApisPanelTitle, content: "", isPrimary: false},
-		{title: constants.EndpointsPanelTitle, content: "", isPrimary: false},
+		{title: constants.EnvironmentsPanelTitle, content: ""},
+		{title: constants.ApisPanelTitle, content: ""},
+		{title: constants.EndpointsPanelTitle, content: ""},
 	}
 
 	mainPanelConfigs = []PanelConfig{
-		{title: constants.RequestPanelTitle, content: "Main top", isPrimary: true},
-		{title: constants.ResponsePanelTitle, content: "Main Bottom", isPrimary: true},
+		{title: constants.RequestPanelTitle, content: "Main top"},
+		{title: constants.ResponsePanelTitle, content: "Main Bottom"},
 	}
 )
 
