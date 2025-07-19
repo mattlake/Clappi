@@ -80,11 +80,7 @@ func (tui *ClappiTUI) setupPanels() {
 		tui.panels = append(tui.panels, l)
 	}
 
-	// todo replace this later with dynamic functionality
-	apiList := tui.sidebarLists[constants.ApisPanelTitle]
-	apiList.AddItem("API1", "This is the first API", 0, nil).
-		AddItem("API2", "This is the second API", 0, nil).
-		AddItem("API3", "This is the third API", 0, nil)
+	tui.hydratePanels()
 
 	var mainViews []tview.Primitive
 	for _, config := range mainPanelConfigs {
@@ -101,6 +97,25 @@ func (tui *ClappiTUI) setupPanels() {
 		AddItem(mainContent, 0, 2, false)
 
 	tui.app.SetRoot(root, true).EnableMouse(true)
+}
+
+func (tui *ClappiTUI) hydratePanels() {
+	// todo replace this later with dynamic functionality
+	environmentslist := tui.sidebarLists[constants.EnvironmentsPanelTitle]
+	environmentslist.AddItem("Default", "", 0, nil).
+		AddItem("Local", "", 0, nil).
+		AddItem("Development", "", 0, nil).
+		AddItem("Production", "", 0, nil)
+
+	apiList := tui.sidebarLists[constants.ApisPanelTitle]
+	apiList.AddItem("Official Joke API", "", 0, nil)
+
+	endpointsList := tui.sidebarLists[constants.EndpointsPanelTitle]
+	endpointsList.AddItem("https://official-joke-api.appspot.com/jokes/random", "", 0, nil).
+		AddItem("https://official-joke-api.appspot.com/types", "", 0, nil).
+		AddItem("https://official-joke-api.appspot.com/jokes/ten", "", 0, nil).
+		AddItem("https://official-joke-api.appspot.com/jokes/programming/random", "", 0, nil).
+		AddItem("https://official-joke-api.appspot.com/jokes/:id", "", 0, nil)
 }
 
 func (tui *ClappiTUI) createVerticalFlex(items ...tview.Primitive) *tview.Flex {
