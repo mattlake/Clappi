@@ -6,10 +6,22 @@ import (
 	"github.com/rivo/tview"
 )
 
+type Panel interface {
+	tview.Primitive
+	SetBorderColor(color tcell.Color) *tview.Box
+}
+
+type PanelConfig struct {
+	title     string
+	content   string
+	isPrimary bool
+}
+
 type ClappiTUI struct {
 	app          *tview.Application
-	panels       []tview.Primitive
+	panels       []Panel
 	currentPanel int
+	sidebarLists map[string]*tview.List
 }
 
 const (
@@ -18,55 +30,66 @@ const (
 	focusedBorderColor   = tcell.ColorYellow
 )
 
-func createTextPanelBase(title, content string) *tview.Box {
-	return tview.NewTextView().
-		SetText(content).
+// Define panel configurations
+var (
+	sidebarPanelConfigs = []PanelConfig{
+		{title: constants.EnvironmentsPanelTitle, content: "", isPrimary: false},
+		{title: constants.ApisPanelTitle, content: "", isPrimary: false},
+		{title: constants.EndpointsPanelTitle, content: "", isPrimary: false},
+	}
+
+	mainPanelConfigs = []PanelConfig{
+		{title: constants.RequestPanelTitle, content: "Main top", isPrimary: true},
+		{title: constants.ResponsePanelTitle, content: "Main Bottom", isPrimary: true},
+	}
+)
+
+func createList(title string) *tview.List {
+	// This needs to be done is stages otherwise the list is converted to a box
+	list := tview.NewList()
+	list.SetTitle(title).SetBorder(true)
+	return list
+}
+
+func createTextPanel(config PanelConfig) *tview.TextView {
+	// This needs to be done is stages otherwise the list is converted to a box
+	tv := tview.NewTextView()
+	tv.SetText(config.content).
 		SetTextAlign(tview.AlignCenter).
 		SetBorder(true).
-		SetTitle(title)
+		SetTitle(config.title)
+	return tv
 }
 
 func newClappiTUI() *ClappiTUI {
 	tui := &ClappiTUI{
 		app:          tview.NewApplication(),
 		currentPanel: 0,
+		sidebarLists: make(map[string]*tview.List),
 	}
 	tui.setupPanels()
 	return tui
 }
 
 func (tui *ClappiTUI) setupPanels() {
-	environmentList := tview.NewList()
-	apiList := tview.NewList()
-	endpointList := tview.NewList()
+	var sideBarViews []tview.Primitive
+
+	for _, config := range sidebarPanelConfigs {
+		l := createList(config.title)
+		tui.sidebarLists[config.title] = l
+		sideBarViews = append(sideBarViews, l)
+		tui.panels = append(tui.panels, l)
+	}
 
 	// todo replace this later with dynamic functionality
+	apiList := tui.sidebarLists[constants.ApisPanelTitle]
 	apiList.AddItem("API1", "This is the first API", 0, nil).
 		AddItem("API2", "This is the second API", 0, nil).
 		AddItem("API3", "This is the third API", 0, nil)
 
-	environmentList.SetBorder(true).SetTitle(constants.ApisPanelTitle)
-	apiList.SetBorder(true).SetTitle(constants.ApisPanelTitle)
-	endpointList.SetBorder(true).SetTitle(constants.ApisPanelTitle)
-
-	mainPanels := []struct {
-		title, content string
-	}{
-		{constants.RequestPanelTitle, "Main top"},
-		{constants.ResponsePanelTitle, "Main Bottom"},
-	}
-
-	var sideBarViews []tview.Primitive
-	sideBarViews = append(sideBarViews, environmentList)
-	sideBarViews = append(sideBarViews, apiList)
-	sideBarViews = append(sideBarViews, endpointList)
-	tui.panels = append(tui.panels, environmentList)
-	tui.panels = append(tui.panels, apiList)
-	tui.panels = append(tui.panels, endpointList)
-
 	var mainViews []tview.Primitive
-	for _, p := range mainPanels {
-		panel := createTextPanelBase(p.title, p.content)
+	for _, config := range mainPanelConfigs {
+		panel := createTextPanel(config)
 		mainViews = append(mainViews, panel)
 		tui.panels = append(tui.panels, panel)
 	}
@@ -91,74 +114,29 @@ func (tui *ClappiTUI) createVerticalFlex(items ...tview.Primitive) *tview.Flex {
 	return flex
 }
 func (tui *ClappiTUI) setFocus(index int) {
-	// Reset the border colors
-	for _, p := range tui.panels {
-		switch p.(type) {
-		case *tview.Box:
-			p.(*tview.Box).SetBorderColor(defaultBorderColor)
-		case *tview.List:
-			p.(*tview.List).SetBorderColor(defaultBorderColor)
-		}
-	}
+	tui.resetBorderColors()
+	tui.updateCurrentPanel(index)
+	tui.highlightCurrentPanel()
+	tui.app.SetFocus(tui.panels[tui.currentPanel])
+}
 
-	// highlight the focused panel
+func (tui *ClappiTUI) highlightCurrentPanel() {
+	tui.panels[tui.currentPanel].SetBorderColor(focusedBorderColor)
+}
+
+func (tui *ClappiTUI) updateCurrentPanel(index int) {
 	tui.currentPanel = index
 	if tui.currentPanel >= len(tui.panels) {
 		tui.currentPanel = 0
 	} else if tui.currentPanel < 0 {
 		tui.currentPanel = len(tui.panels) - 1
 	}
-	switch tui.panels[tui.currentPanel].(type) {
-	case *tview.Box:
-		tui.panels[tui.currentPanel].(*tview.Box).SetBorderColor(focusedBorderColor)
-	case *tview.List:
-		tui.panels[tui.currentPanel].(*tview.List).SetBorderColor(focusedBorderColor)
-	}
-	tui.app.SetFocus(tui.panels[tui.currentPanel])
 }
-func (tui *ClappiTUI) setupKeyBindings() {
-	tui.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		// Standard keys, I may bin these tbh
-		case tcell.KeyEscape:
-			tui.app.Stop()
-		case tcell.KeyTab:
-			tui.setFocus(tui.currentPanel + 1)
-			return nil
-		case tcell.KeyBacktab:
-			tui.setFocus(tui.currentPanel - 1)
-			return nil
-		}
 
-		// Vim Keybindings
-		switch event.Rune() {
-		case 'j':
-			if tui.currentPanel < len(tui.panels)-1 {
-				tui.setFocus(tui.currentPanel + 1)
-			}
-			return nil
-		case 'k':
-			if tui.currentPanel > 0 {
-				tui.setFocus(tui.currentPanel - 1)
-			}
-			return nil
-		case 'h':
-			if tui.currentPanel >= mainPanelsStartIndex {
-				tui.setFocus(tui.currentPanel - mainPanelsStartIndex)
-			}
-			return nil
-		case 'l':
-			if tui.currentPanel < mainPanelsStartIndex {
-				tui.setFocus(tui.currentPanel + mainPanelsStartIndex)
-			}
-			return nil
-		case 'q':
-			tui.app.Stop()
-			return nil
-		}
-
-		return event
-	})
+func (tui *ClappiTUI) resetBorderColors() {
+	for _, p := range tui.panels {
+		p.SetBorderColor(defaultBorderColor)
+	}
 }
 
 func (tui *ClappiTUI) run() error {
