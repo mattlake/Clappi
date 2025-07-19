@@ -36,13 +36,18 @@ func newClappiTUI() *ClappiTUI {
 }
 
 func (tui *ClappiTUI) setupPanels() {
-	sidebarPanels := []struct {
-		title, content string
-	}{
-		{constants.EnvironmentsPanelTitle, "Sidebar top"},
-		{constants.ApisPanelTitle, "Sidebar middle"},
-		{constants.EndpointsPanelTitle, "Sidebar bottom"},
-	}
+	environmentList := tview.NewList()
+	apiList := tview.NewList()
+	endpointList := tview.NewList()
+
+	// todo replace this later with dynamic functionality
+	apiList.AddItem("API1", "This is the first API", 0, nil).
+		AddItem("API2", "This is the second API", 0, nil).
+		AddItem("API3", "This is the third API", 0, nil)
+
+	environmentList.SetBorder(true).SetTitle(constants.ApisPanelTitle)
+	apiList.SetBorder(true).SetTitle(constants.ApisPanelTitle)
+	endpointList.SetBorder(true).SetTitle(constants.ApisPanelTitle)
 
 	mainPanels := []struct {
 		title, content string
@@ -52,11 +57,13 @@ func (tui *ClappiTUI) setupPanels() {
 	}
 
 	var sideBarViews []tview.Primitive
-	for _, p := range sidebarPanels {
-		panel := createTextPanelBase(p.title, p.content)
-		sideBarViews = append(sideBarViews, panel)
-		tui.panels = append(tui.panels, panel)
-	}
+	sideBarViews = append(sideBarViews, environmentList)
+	sideBarViews = append(sideBarViews, apiList)
+	sideBarViews = append(sideBarViews, endpointList)
+	tui.panels = append(tui.panels, environmentList)
+	tui.panels = append(tui.panels, apiList)
+	tui.panels = append(tui.panels, endpointList)
+
 	var mainViews []tview.Primitive
 	for _, p := range mainPanels {
 		panel := createTextPanelBase(p.title, p.content)
@@ -86,7 +93,12 @@ func (tui *ClappiTUI) createVerticalFlex(items ...tview.Primitive) *tview.Flex {
 func (tui *ClappiTUI) setFocus(index int) {
 	// Reset the border colors
 	for _, p := range tui.panels {
-		p.(*tview.Box).SetBorderColor(defaultBorderColor)
+		switch p.(type) {
+		case *tview.Box:
+			p.(*tview.Box).SetBorderColor(defaultBorderColor)
+		case *tview.List:
+			p.(*tview.List).SetBorderColor(defaultBorderColor)
+		}
 	}
 
 	// highlight the focused panel
@@ -96,7 +108,12 @@ func (tui *ClappiTUI) setFocus(index int) {
 	} else if tui.currentPanel < 0 {
 		tui.currentPanel = len(tui.panels) - 1
 	}
-	tui.panels[tui.currentPanel].(*tview.Box).SetBorderColor(focusedBorderColor)
+	switch tui.panels[tui.currentPanel].(type) {
+	case *tview.Box:
+		tui.panels[tui.currentPanel].(*tview.Box).SetBorderColor(focusedBorderColor)
+	case *tview.List:
+		tui.panels[tui.currentPanel].(*tview.List).SetBorderColor(focusedBorderColor)
+	}
 	tui.app.SetFocus(tui.panels[tui.currentPanel])
 }
 func (tui *ClappiTUI) setupKeyBindings() {
