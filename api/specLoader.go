@@ -1,6 +1,7 @@
 package api
 
 import (
+	"Clappi/constants"
 	"errors"
 	"fmt"
 	"github.com/pb33f/libopenapi"
@@ -15,7 +16,7 @@ func (am *APIManager) LoadSpecs() error {
 
 	return filepath.Walk(am.specPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("Error accessing path %s: %w", path, err)
+			return fmt.Errorf(constants.FileAccessError, path, err)
 		}
 
 		if info.IsDir() {
@@ -45,21 +46,21 @@ func (am *APIManager) LoadSpecs() error {
 func (am *APIManager) loadSpec(path string) (*API, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading file %s: %w", path, err)
+		return nil, fmt.Errorf(constants.FileReadingError, path, err)
 	}
 
 	doc, err := libopenapi.NewDocument(data)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing file %s: %w", path, err)
+		return nil, fmt.Errorf(constants.FileParsingError, path, err)
 	}
 
 	if doc.GetSpecInfo().SpecType == utils.OpenApi2 {
-		return nil, errors.New("V2 is not currently supported. Please use a V3 specification.")
+		return nil, errors.New(constants.UnsupportedVersionError)
 	}
 
 	model, errs := doc.BuildV3Model()
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("Error building model for file %s", path)
+		return nil, fmt.Errorf(constants.ModelBuildingError, path)
 	}
 
 	info := model.Model.Info

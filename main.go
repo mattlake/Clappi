@@ -43,19 +43,19 @@ func (tui *ClappiTUI) loadAPIs() {
 
 	if err := tui.apiManager.LoadSpecs(); err != nil {
 		if mainPanel, ok := tui.panels[mainPanelsStartIndex].(*tview.TextView); ok {
-			mainPanel.SetText(fmt.Sprintf("Error loading APIs: %s", err))
+			mainPanel.SetText(fmt.Sprintf(constants.ApiLoadingError, err))
 		}
 		return
 	}
 
-	for _, api := range tui.apiManager.GetAPIs() {
+	for _, apiData := range tui.apiManager.GetAPIs() {
 		secondaryText := "Valid OpenAPi spec"
-		if api.LoadError != nil {
-			secondaryText = fmt.Sprintf("Error loading spec: %s", api.LoadError)
+		if apiData.LoadError != nil {
+			secondaryText = fmt.Sprintf(constants.SpecLoadingError, apiData.LoadError)
 		}
 
-		apiList.AddItem(api.Name, secondaryText, 0, func() {
-			tui.handleApiSelection(api)
+		apiList.AddItem(apiData.Name, secondaryText, 0, func() {
+			tui.handleApiSelection(apiData)
 		})
 	}
 }
@@ -63,7 +63,7 @@ func (tui *ClappiTUI) loadAPIs() {
 func (tui *ClappiTUI) handleApiSelection(api *api.API) {
 	if api.LoadError != nil {
 		if mainPanel, ok := tui.panels[mainPanelsStartIndex].(*tview.TextView); ok {
-			mainPanel.SetText(fmt.Sprintf("Error loading spec: %s", api.LoadError))
+			mainPanel.SetText(fmt.Sprintf(constants.SpecLoadingError, api.LoadError))
 		}
 		return
 	}
