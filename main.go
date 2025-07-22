@@ -1,7 +1,9 @@
 package main
 
 import (
+	"Clappi/api"
 	"Clappi/constants"
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -21,6 +23,60 @@ type ClappiTUI struct {
 	panels       []Panel
 	currentPanel int
 	sidebarLists map[string]*tview.List
+	apiManager   *api.APIManager
+}
+
+func newClappiTUI(specPath string) *ClappiTUI {
+	tui := &ClappiTUI{
+		app:          tview.NewApplication(),
+		currentPanel: 0,
+		sidebarLists: make(map[string]*tview.List),
+		apiManager:   api.NewAPIManager(specPath),
+	}
+	tui.setupPanels()
+	return tui
+}
+
+func (tui *ClappiTUI) loadAPIs() {
+	apiList := tui.sidebarLists[constants.ApisPanelTitle]
+	apiList.Clear()
+
+	if err := tui.apiManager.LoadSpecs(); err != nil {
+		if mainPanel, ok := tui.panels[mainPanelsStartIndex].(*tview.TextView); ok {
+			mainPanel.SetText(fmt.Sprintf("Error loading APIs: %s", err))
+		}
+		return
+	}
+
+	for _, api := range tui.apiManager.GetAPIs() {
+		secondaryText := "Valid OpenAPi spec"
+		if api.LoadError != nil {
+			secondaryText = fmt.Sprintf("Error loading spec: %s", api.LoadError)
+		}
+
+		apiList.AddItem(api.Name, secondaryText, 0, func() {
+			tui.handleApiSelection(api)
+		})
+	}
+}
+
+func (tui *ClappiTUI) handleApiSelection(api *api.API) {
+	if api.LoadError != nil {
+		if mainPanel, ok := tui.panels[mainPanelsStartIndex].(*tview.TextView); ok {
+			mainPanel.SetText(fmt.Sprintf("Error loading spec: %s", api.LoadError))
+		}
+		return
+	}
+
+	if mainPanel, ok := tui.panels[mainPanelsStartIndex].(*tview.TextView); ok {
+		info := api.Model.Model.Info
+		details := fmt.Sprintf("API: %s\nVersion: %s\nDescription: %s\nFile: %s",
+			info.Title,
+			info.Version,
+			info.Description,
+			api.FilePath)
+		mainPanel.SetText(details)
+	}
 }
 
 const (
@@ -60,16 +116,6 @@ func createTextPanel(config PanelConfig) *tview.TextView {
 	return tv
 }
 
-func newClappiTUI() *ClappiTUI {
-	tui := &ClappiTUI{
-		app:          tview.NewApplication(),
-		currentPanel: 0,
-		sidebarLists: make(map[string]*tview.List),
-	}
-	tui.setupPanels()
-	return tui
-}
-
 func (tui *ClappiTUI) setupPanels() {
 	var sideBarViews []tview.Primitive
 
@@ -80,7 +126,7 @@ func (tui *ClappiTUI) setupPanels() {
 		tui.panels = append(tui.panels, l)
 	}
 
-	tui.hydratePanels()
+	tui.loadAPIs()
 
 	var mainViews []tview.Primitive
 	for _, config := range mainPanelConfigs {
@@ -97,25 +143,6 @@ func (tui *ClappiTUI) setupPanels() {
 		AddItem(mainContent, 0, 2, false)
 
 	tui.app.SetRoot(root, true).EnableMouse(true)
-}
-
-func (tui *ClappiTUI) hydratePanels() {
-	// todo replace this later with dynamic functionality
-	environmentslist := tui.sidebarLists[constants.EnvironmentsPanelTitle]
-	environmentslist.AddItem("Default", "", 0, nil).
-		AddItem("Local", "", 0, nil).
-		AddItem("Development", "", 0, nil).
-		AddItem("Production", "", 0, nil)
-
-	apiList := tui.sidebarLists[constants.ApisPanelTitle]
-	apiList.AddItem("Official Joke API", "", 0, nil)
-
-	endpointsList := tui.sidebarLists[constants.EndpointsPanelTitle]
-	endpointsList.AddItem("https://official-joke-api.appspot.com/jokes/random", "", 0, nil).
-		AddItem("https://official-joke-api.appspot.com/types", "", 0, nil).
-		AddItem("https://official-joke-api.appspot.com/jokes/ten", "", 0, nil).
-		AddItem("https://official-joke-api.appspot.com/jokes/programming/random", "", 0, nil).
-		AddItem("https://official-joke-api.appspot.com/jokes/:id", "", 0, nil)
 }
 
 func (tui *ClappiTUI) createVerticalFlex(items ...tview.Primitive) *tview.Flex {
@@ -159,7 +186,8 @@ func (tui *ClappiTUI) run() error {
 }
 
 func main() {
-	tui := newClappiTUI()
+	specPath := "specs" //TODO this will be in user data somewhere someday
+	tui := newClappiTUI(specPath)
 	tui.setupKeyBindings()
 	if err := tui.run(); err != nil {
 		panic(err)
