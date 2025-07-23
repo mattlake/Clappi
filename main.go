@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"strings"
 )
 
 type Panel interface {
@@ -68,6 +69,7 @@ func (tui *ClappiTUI) handleApiSelection(api *api.API) {
 		return
 	}
 
+	// Update the main panel with api info, this will be replaced with the request details in future
 	if mainPanel, ok := tui.panels[mainPanelsStartIndex].(*tview.TextView); ok {
 		info := api.Model.Model.Info
 		details := fmt.Sprintf("API: %s\nVersion: %s\nDescription: %s\nFile: %s",
@@ -76,6 +78,39 @@ func (tui *ClappiTUI) handleApiSelection(api *api.API) {
 			info.Description,
 			api.FilePath)
 		mainPanel.SetText(details)
+	}
+
+	// Update the endpoints list
+	endpointsList := tui.sidebarLists[constants.EndpointsPanelTitle]
+	endpointsList.Clear()
+
+	// Get the oaths from the now selected api
+	paths := api.Model.Model.Paths
+	if paths == nil {
+		return
+	}
+
+	// Populate the endpoints list with the path and methods
+	for path, pathItem := range paths.PathItems.FromOldest() {
+		methods := []string{"get", "post", "put", "delete", "patch", "head", "options", "trace"}
+
+		for _, method := range methods {
+			operation, exists := pathItem.GetOperations().Get(method)
+
+			if !exists {
+				continue
+			}
+
+			title := fmt.Sprintf("%s %s", strings.ToUpper(method), path)
+			description := ""
+			if operation.Summary != "" {
+				description = operation.Summary
+			} else if operation.Description != "" {
+				description = operation.Description
+			}
+
+			endpointsList.AddItem(title, description, 0, nil)
+		}
 	}
 }
 
