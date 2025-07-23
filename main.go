@@ -12,6 +12,7 @@ import (
 type Panel interface {
 	tview.Primitive
 	SetBorderColor(color tcell.Color) *tview.Box
+	GetBorderColor() tcell.Color
 }
 
 type PanelConfig struct {
