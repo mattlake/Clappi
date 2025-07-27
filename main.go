@@ -51,12 +51,7 @@ func (tui *ClappiTUI) loadAPIs() {
 	}
 
 	for _, apiData := range tui.apiManager.GetAPIs() {
-		secondaryText := "Valid OpenAPi spec"
-		if apiData.LoadError != nil {
-			secondaryText = fmt.Sprintf(constants.SpecLoadingError, apiData.LoadError)
-		}
-
-		apiList.AddItem(apiData.Name, secondaryText, 0, func() {
+		apiList.AddItem(apiData.Name, "", 0, func() {
 			tui.handleApiSelection(apiData)
 		})
 	}
@@ -110,9 +105,15 @@ func (tui *ClappiTUI) handleApiSelection(api *api.API) {
 				description = operation.Description
 			}
 
+			if description != "" {
+				title = fmt.Sprintf("%s - %s", title, description)
+			}
+
 			endpointsList.AddItem(title, description, 0, nil)
 		}
 	}
+
+	tui.setFocus(2) // todo this should probably be an map somewhere, maybe rework 'panels'
 }
 
 const (
@@ -138,6 +139,7 @@ var (
 func createList(title string) *tview.List {
 	// This needs to be done is stages otherwise the list is converted to a box
 	list := tview.NewList()
+	list.ShowSecondaryText(false)
 	list.SetTitle(title).SetBorder(true)
 	return list
 }
